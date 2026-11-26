@@ -95,9 +95,7 @@ const loadItems = useCallback(async () => {
 try {
 const { data, error } = await supabase
 .from("items")
-.select(
-"id, seller_id, seller_username, game, title, price, description, status, created_at"
-)
+.select("id, seller_id, seller_username, game, title, price, description, status, created_at")
 .eq("status", "active")
 .order("created_at", { ascending: false })
 if (error) {
@@ -113,56 +111,69 @@ showToast("Сеть лоты: " + (err?.message || String(err)), "bad")
 useEffect(() => {
 let cancelled = false
 initTelegram()
-
 const boot = async () => {
-  try {
-    let tgUser = getTelegramUser()
-    for (let i = 0; i < 8 && !tgUser; i++) {
-      await new Promise((r) => setTimeout(r, 200))
-      tgUser = getTelegramUser()
-    }
-    if (!tgUser) {
-      showToast("Telegram не передал ID пользователя", "bad")
-    }
-    const u = await ensureUser(tgUser)
-    if (cancelled) return
-    setUser(u)
-    await loadItems()
-  } catch (e) {
-    showToast("Запуск: " + (e?.message || String(e)), "bad")
-  } finally {
-    if (!cancelled) setLoading(false)
-  }
+try {
+let tgUser = getTelegramUser()
+for (let i = 0; i < 8 && !tgUser; i++) {
+await new Promise((r) => setTimeout(r, 200))
+tgUser = getTelegramUser()
 }
-
+if (!tgUser) {
+showToast("Telegram не передал ID пользователя", "bad")
+}
+const u = await ensureUser(tgUser)
+if (cancelled) return
+setUser(u)
+await loadItems()
+} catch (e) {
+showToast("Запуск: " + (e?.message || String(e)), "bad")
+} finally {
+if (!cancelled) setLoading(false)
+}
+}
 boot()
-return () => {
-  cancelled = true
-}
+return () => { cancelled = true }
 }, [ensureUser, loadItems, showToast])
 
-const createItem = useCallback(
-async (payload) => {
+const createItem = useCallback(async (payload) => {
 if (!user) throw new Error("Откройте приложение через Telegram")
 const title = (payload.title || "").trim()
 if (!title) throw new Error("Укажите название лота")
 const price = Number(payload.price)
-if (!Number.isFinite(price) || price <= 0)
-throw new Error("Некорректная цена")
+if (!Number.isFinite(price) || price <= 0) throw new Error("Некорректная цена")
 
-  const { data, error } = await supabase
-    .from("items")
-    .insert({
-      seller_id: user.id,
-      seller_username: user.username,
-      game: payload.game,
-      title,
-      price,
-      description: payload.description?.trim() || null,
-      autodelivery: payload.autodelivery?.trim() || null,
-      status: "active",
-    })
-    .select()
-    .single()
+const { data, error } = await supabase
+  .from("items")
+  .insert({
+    seller_id: user.id,
+    seller_username: user.username,
+    game: payload.game,
+    title,
+    price,
+    description: payload.description?.trim() || null,
+    autodelivery: payload.autodelivery?.trim() || null,
+    status: "active",
+  })
+  .select()
+  .single()
 
-  if (error) throw new Error(error.message)
+if (error) throw new Error(error.message)
+setItems((prev) => [data, ...prev])
+showToast("Лот опубликован!")
+return data
+}, [user, showToast])
+
+return (
+<MarketContext.Provider
+value={{ user, items, loading, toast, showToast, dismissToast, createItem, loadItems }}
+>
+{children}
+</MarketContext.Provider>
+)
+}
+
+export function useMarket() {
+const ctx = useContext(MarketContext)
+if (!ctx) throw new Error("useMarket must be used inside MarketProvider")
+return ctx
+}
