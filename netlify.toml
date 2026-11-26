@@ -1,5 +1,9 @@
 [[redirects]]
-  from = "/supabase/*"
-  to = "https://supabase.co"
-  status = 200
-  force = true
+from = "/supabase/"
+to = "https://supabase.co"
+status = 200
+force = true
+[redirects.headers]
+Access-Control-Allow-Origin = ""
+Access-Control-Allow-Methods = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+Access-Control-Allow-Headers = "apikey, Authorization, Content-Type, X-Client-Info, Prefer"
