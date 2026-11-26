@@ -15,7 +15,23 @@ export function initTelegram() {
 
 export function getTelegramUser() {
   const tg = window?.Telegram?.WebApp || WebApp
-  const u = tg?.initDataUnsafe?.user
+  let u = tg?.initDataUnsafe?.user
+
+  // Запасной способ: достаем user напрямую из хэша ссылки Telegram
+  if (!u && window.location.hash) {
+    try {
+      const hashParams = new URLSearchParams(window.location.hash.slice(1))
+      const webAppData = hashParams.get("tgWebAppData")
+      if (webAppData) {
+        const dataParams = new URLSearchParams(webAppData)
+        const userStr = dataParams.get("user")
+        if (userStr) u = JSON.parse(userStr)
+      }
+    } catch (e) {
+      console.warn("[NEXLOT] Hash parse error", e)
+    }
+  }
+
   if (!u || typeof u.id !== "number") return null
   return {
     id: u.id,
