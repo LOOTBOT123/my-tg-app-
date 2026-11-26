@@ -1,98 +1,117 @@
 import { useState } from "react"
-import { GAMES } from "../data"
 import { useMarket } from "../market"
 
-const EMPTY = { title: "", game: "brawl", price: "", description: "" }
+const GAMES = [
+  "CS2", "Dota 2", "Valorant", "GTA V",
+  "Minecraft", "Roblox", "Fortnite", "Free Fire",
+]
 
-export default function Sell({ user, onPublished }) {
-  const { addProduct } = useMarket()
-  const [form, setForm] = useState(EMPTY)
-  const [error, setError] = useState("")
+export default function Sell({ onPublished }) {
+  const { createItem, showToast, user } = useMarket()
+  const [form, setForm] = useState({
+    game: GAMES[0],
+    title: "",
+    price: "",
+    description: "",
+    autodelivery: "",
+  })
+  const [submitting, setSubmitting] = useState(false)
 
-  function update(field, value) {
-    setForm((current) => ({ ...current, [field]: value }))
-    setError("")
-  }
+  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
 
-  function submit(event) {
-    event.preventDefault()
+  const submit = async (e) => {
+    e.preventDefault()
+    if (submitting) return
+    if (!user) return showToast("Откройте приложение через Telegram", "bad")
+    if (!form.title.trim()) return showToast("Укажите название", "bad")
     const price = Number(form.price)
-    if (form.title.trim().length < 3) {
-      setError("Название должно быть не короче 3 символов")
-      return
+    if (!Number.isFinite(price) || price <= 0) return showToast("Некорректная цена", "bad")
+
+    try {
+      setSubmitting(true)
+      await createItem(form)
+      showToast("Лот опубликован")
+      setForm({ game: GAMES[0], title: "", price: "", description: "", autodelivery: "" })
+      onPublished?.()
+    } catch (err) {
+      showToast(err.message || "Ошибка публикации", "bad")
+    } finally {
+      setSubmitting(false)
     }
-    if (!Number.isFinite(price) || price <= 0) {
-      setError("Укажите цену больше нуля")
-      return
-    }
-    addProduct({ ...form, price }, user)
-    setForm(EMPTY)
-    onPublished()
   }
 
   return (
-    <section className="px-4 pt-5">
-      <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#8b7cff]">Новый лот</p>
-      <h1 className="mt-1 text-[28px] font-extrabold leading-none tracking-tight">Продать</h1>
-      <p className="mt-2 text-sm text-white/50">Лот сразу появится на витрине и в вашем профиле</p>
+    <div className="px-4 pt-5">
+      <h1 className="text-xl font-extrabold tracking-tight">Продать</h1>
+      <p className="mt-1 text-sm text-white/50">Новый лот появится на витрине сразу</p>
 
-      <form onSubmit={submit} className="mt-5 flex flex-col gap-3">
-        <label className="flex flex-col gap-1.5 text-sm font-semibold text-white/70">
-          Название
-          <input
-            value={form.title}
-            onChange={(event) => update("title", event.target.value)}
-            placeholder="Например, 500 гемов"
-            className="rounded-xl border border-white/10 bg-[#141822] px-3.5 py-3 text-base font-medium text-white outline-none placeholder:text-white/30 focus:border-[#8b7cff]"
-          />
-        </label>
-
-        <label className="flex flex-col gap-1.5 text-sm font-semibold text-white/70">
-          Игра
+      <form onSubmit={submit} className="mt-4 space-y-3">
+        <label className="block">
+          <span className="text-xs text-white/50">Игра</span>
           <select
             value={form.game}
-            onChange={(event) => update("game", event.target.value)}
-            className="rounded-xl border border-white/10 bg-[#141822] px-3.5 py-3 text-base font-medium text-white outline-none focus:border-[#8b7cff]"
+            onChange={set("game")}
+            className="mt-1 w-full rounded-xl bg-white/5 px-3 py-3 text-sm ring-1 ring-white/10 outline-none"
           >
-            {GAMES.map((game) => (
-              <option key={game.id} value={game.id}>
-                {game.label}
-              </option>
+            {GAMES.map((g) => (
+              <option key={g} value={g} className="bg-[#0f1220]">{g}</option>
             ))}
           </select>
         </label>
 
-        <label className="flex flex-col gap-1.5 text-sm font-semibold text-white/70">
-          Цена, ₽
+        <label className="block">
+          <span className="text-xs text-white/50">Название</span>
           <input
-            inputMode="numeric"
-            value={form.price}
-            onChange={(event) => update("price", event.target.value.replace(/[^\d]/g, ""))}
-            placeholder="990"
-            className="rounded-xl border border-white/10 bg-[#141822] px-3.5 py-3 text-base font-medium text-white outline-none placeholder:text-white/30 focus:border-[#8b7cff]"
+            value={form.title}
+            onChange={set("title")}
+            maxLength={120}
+            placeholder="Например: Аккаунт CS2 с Prime"
+            className="mt-1 w-full rounded-xl bg-white/5 px-3 py-3 text-sm ring-1 ring-white/10 outline-none"
           />
         </label>
 
-        <label className="flex flex-col gap-1.5 text-sm font-semibold text-white/70">
-          Описание
+        <label className="block">
+          <span className="text-xs text-white/50">Цена, USDT</span>
+          <input
+            value={form.price}
+            onChange={set("price")}
+            inputMode="decimal"
+            placeholder="0.00"
+            className="mt-1 w-full rounded-xl bg-white/5 px-3 py-3 text-sm ring-1 ring-white/10 outline-none"
+          />
+        </label>
+
+        <label className="block">
+          <span className="text-xs text-white/50">Описание</span>
           <textarea
             value={form.description}
-            onChange={(event) => update("description", event.target.value)}
+            onChange={set("description")}
             rows={3}
-            placeholder="Как передаёте товар"
-            className="resize-none rounded-xl border border-white/10 bg-[#141822] px-3.5 py-3 text-base font-medium text-white outline-none placeholder:text-white/30 focus:border-[#8b7cff]"
+            className="mt-1 w-full resize-none rounded-xl bg-white/5 px-3 py-3 text-sm ring-1 ring-white/10 outline-none"
           />
         </label>
 
-        {error ? <p className="text-sm font-semibold text-rose-300">{error}</p> : null}
+        <label className="block">
+          <span className="text-xs text-white/50">
+            Данные автовыдачи (видны только покупателю после оплаты)
+          </span>
+          <textarea
+            value={form.autodelivery}
+            onChange={set("autodelivery")}
+            rows={2}
+            placeholder="Логин:пароль или код"
+            className="mt-1 w-full resize-none rounded-xl bg-white/5 px-3 py-3 text-sm ring-1 ring-white/10 outline-none"
+          />
+        </label>
 
         <button
           type="submit"
-          className="mt-1 rounded-xl bg-[#8b7cff] py-3.5 text-base font-bold text-white transition hover:bg-[#9d91ff] active:scale-[0.99]"
+          disabled={submitting}
+          className="w-full rounded-xl bg-[#3ee0b0] px-4 py-3.5 text-sm font-bold text-[#06281d] disabled:opacity-50"
         >
-          Выставить на продажу
+          {submitting ? "Публикуем…" : "Опубликовать лот"}
         </button>
       </form>
-    </section>
+    </div>
   )
 }
