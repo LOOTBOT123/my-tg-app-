@@ -1,12 +1,11 @@
-import { createClient } from "@supabase/supabase-js"
+import { createClient } from '@supabase/supabase-js'
 
-const SUPABASE_URL = "https://YOUR_PROJECT.supabase.co"
-const SUPABASE_ANON_KEY = "YOUR_ANON_KEY"
-
-if (!SUPABASE_URL.startsWith("https://") || !SUPABASE_ANON_KEY) {
-  console.error("[NEXLOT] Supabase не сконфигурирован — проверьте URL/anon key")
-}
+const SUPABASE_URL = 'https://supabase.co'
+const SUPABASE_ANON_KEY = 'sb_publishable_QxPXGj8esZw0fN6pOFTLAQ_FFt8c0X0'
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: { persistSession: false, autoRefreshToken: false },
-})sb_publishable_QxPXGj8dsZu0FN4pDfTLAQ_FFt8sDX0
+  auth: {
+    persistSession: false,
+    autoRefreshToken: false,
+  },
+})
