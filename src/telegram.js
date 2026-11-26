@@ -1,5 +1,7 @@
+import WebApp from '@twa-dev/sdk'
+
 export function initTelegram() {
-  const tg = window?.Telegram?.WebApp
+  const tg = window?.Telegram?.WebApp || WebApp
   if (!tg) return
   try {
     tg.ready()
@@ -12,7 +14,8 @@ export function initTelegram() {
 }
 
 export function getTelegramUser() {
-  const u = window?.Telegram?.WebApp?.initDataUnsafe?.user
+  const tg = window?.Telegram?.WebApp || WebApp
+  const u = tg?.initDataUnsafe?.user
   if (!u || typeof u.id !== "number") return null
   return {
     id: u.id,
@@ -24,7 +27,7 @@ export function getTelegramUser() {
 }
 
 export function openTelegramLink(url) {
-  const tg = window?.Telegram?.WebApp
+  const tg = window?.Telegram?.WebApp || WebApp
   if (tg?.openTelegramLink) {
     tg.openTelegramLink(url)
   } else {
