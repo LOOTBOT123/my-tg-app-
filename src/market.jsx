@@ -1,3 +1,4 @@
+
 import {
 createContext,
 useCallback,
@@ -21,7 +22,7 @@ const toastTimer = useRef(null)
 const showToast = useCallback((message, tone = "good") => {
 setToast({ message, tone })
 if (toastTimer.current) clearTimeout(toastTimer.current)
-toastTimer.current = setTimeout(() => setToast(null), 4500)
+toastTimer.current = setTimeout(() => setToast(null), 10000)
 }, [])
 
 const dismissToast = useCallback(() => {
@@ -31,14 +32,54 @@ setToast(null)
 
 const ensureUser = useCallback(async (tgUser) => {
 if (!tgUser) return null
+try {
 const { data: existing, error: selErr } = await supabase
 .from("users")
 .select("*")
 .eq("id", tgUser.id)
 .maybeSingle()
 
-if (selErr) {
-  showToast("Ошибка БД (select): " + selErr.message, "bad")
+  if (selErr) {
+    showToast("БД select: " + JSON.stringify(selErr), "bad")
+    return {
+      id: tgUser.id,
+      username: tgUser.username,
+      first_name: tgUser.firstName,
+      last_name: tgUser.lastName,
+      photo_url: tgUser.photoUrl,
+      balance: 0,
+    }
+  }
+
+  if (existing) return existing
+
+  const { data: created, error: insErr } = await supabase
+    .from("users")
+    .insert({
+      id: tgUser.id,
+      username: tgUser.username,
+      first_name: tgUser.firstName,
+      last_name: tgUser.lastName,
+      photo_url: tgUser.photoUrl,
+      balance: 0,
+    })
+    .select()
+    .single()
+
+  if (insErr) {
+    showToast("БД insert: " + JSON.stringify(insErr), "bad")
+    return {
+      id: tgUser.id,
+      username: tgUser.username,
+      first_name: tgUser.firstName,
+      last_name: tgUser.lastName,
+      photo_url: tgUser.photoUrl,
+      balance: 0,
+    }
+  }
+  return created
+} catch (err) {
+  showToast("Сеть БД: " + (err?.message || String(err)), "bad")
   return {
     id: tgUser.id,
     username: tgUser.username,
@@ -48,37 +89,10 @@ if (selErr) {
     balance: 0,
   }
 }
-
-if (existing) return existing
-
-const { data: created, error: insErr } = await supabase
-  .from("users")
-  .insert({
-    id: tgUser.id,
-    username: tgUser.username,
-    first_name: tgUser.firstName,
-    last_name: tgUser.lastName,
-    photo_url: tgUser.photoUrl,
-    balance: 0,
-  })
-  .select()
-  .single()
-
-if (insErr) {
-  showToast("Ошибка БД (insert): " + insErr.message, "bad")
-  return {
-    id: tgUser.id,
-    username: tgUser.username,
-    first_name: tgUser.firstName,
-    last_name: tgUser.lastName,
-    photo_url: tgUser.photoUrl,
-    balance: 0,
-  }
-}
-return created
 }, [showToast])
 
 const loadItems = useCallback(async () => {
+try {
 const { data, error } = await supabase
 .from("items")
 .select(
@@ -87,11 +101,14 @@ const { data, error } = await supabase
 .eq("status", "active")
 .order("created_at", { ascending: false })
 if (error) {
-console.error("[items.select]", error)
+showToast("Лоты БД: " + JSON.stringify(error), "bad")
 return
 }
 setItems(data || [])
-}, [])
+} catch (err) {
+showToast("Сеть лоты: " + (err?.message || String(err)), "bad")
+}
+}, [showToast])
 
 useEffect(() => {
 let cancelled = false
@@ -112,7 +129,7 @@ const boot = async () => {
     setUser(u)
     await loadItems()
   } catch (e) {
-    showToast("Ошибка запуска: " + e.message, "bad")
+    showToast("Запуск: " + (e?.message || String(e)), "bad")
   } finally {
     if (!cancelled) setLoading(false)
   }
@@ -149,33 +166,3 @@ throw new Error("Некорректная цена")
     .single()
 
   if (error) throw new Error(error.message)
-  setItems((prev) => [data, ...prev])
-  showToast("Лот опубликован!")
-  return data
-},
-[user, showToast]
-)
-
-return (
-<MarketContext.Provider
-value={{
-user,
-items,
-loading,
-toast,
-showToast,
-dismissToast,
-createItem,
-loadItems,
-}}
->
-{children}
-</MarketContext.Provider>
-)
-}
-
-export function useMarket() {
-const ctx = useContext(MarketContext)
-if (!ctx) throw new Error("useMarket must be used inside MarketProvider")
-return ctx
-}
