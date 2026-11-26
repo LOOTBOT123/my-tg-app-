@@ -21,7 +21,7 @@ const toastTimer = useRef(null)
 const showToast = useCallback((message, tone = "good") => {
 setToast({ message, tone })
 if (toastTimer.current) clearTimeout(toastTimer.current)
-toastTimer.current = setTimeout(() => setToast(null), 3500)
+toastTimer.current = setTimeout(() => setToast(null), 4500)
 }, [])
 
 const dismissToast = useCallback(() => {
@@ -36,29 +36,20 @@ const { data: existing, error: selErr } = await supabase
 .select("*")
 .eq("id", tgUser.id)
 .maybeSingle()
+
 if (selErr) {
-console.error("[users.select]", selErr)
-return null
+  showToast("Ошибка БД (select): " + selErr.message, "bad")
+  return {
+    id: tgUser.id,
+    username: tgUser.username,
+    first_name: tgUser.firstName,
+    last_name: tgUser.lastName,
+    photo_url: tgUser.photoUrl,
+    balance: 0,
+  }
 }
 
-if (existing) {
-  const patch = {}
-  if (existing.username !== tgUser.username) patch.username = tgUser.username
-  if (existing.first_name !== tgUser.firstName) patch.first_name = tgUser.firstName
-  if (existing.last_name !== tgUser.lastName) patch.last_name = tgUser.lastName
-  if (existing.photo_url !== tgUser.photoUrl) patch.photo_url = tgUser.photoUrl
-  if (Object.keys(patch).length) {
-    const { data: updated, error: upErr } = await supabase
-      .from("users")
-      .update(patch)
-      .eq("id", tgUser.id)
-      .select()
-      .single()
-    if (upErr) console.error("[users.update]", upErr)
-    return updated || existing
-  }
-  return existing
-}
+if (existing) return existing
 
 const { data: created, error: insErr } = await supabase
   .from("users")
@@ -72,12 +63,20 @@ const { data: created, error: insErr } = await supabase
   })
   .select()
   .single()
+
 if (insErr) {
-  console.error("[users.insert]", insErr)
-  return null
+  showToast("Ошибка БД (insert): " + insErr.message, "bad")
+  return {
+    id: tgUser.id,
+    username: tgUser.username,
+    first_name: tgUser.firstName,
+    last_name: tgUser.lastName,
+    photo_url: tgUser.photoUrl,
+    balance: 0,
+  }
 }
 return created
-}, [])
+}, [showToast])
 
 const loadItems = useCallback(async () => {
 const { data, error } = await supabase
@@ -101,17 +100,19 @@ initTelegram()
 const boot = async () => {
   try {
     let tgUser = getTelegramUser()
-    // Ждем до 2 секунд, если Telegram еще не успел передать initData
-    for (let i = 0; i < 10 && !tgUser; i++) {
+    for (let i = 0; i < 8 && !tgUser; i++) {
       await new Promise((r) => setTimeout(r, 200))
       tgUser = getTelegramUser()
+    }
+    if (!tgUser) {
+      showToast("Telegram не передал ID пользователя", "bad")
     }
     const u = await ensureUser(tgUser)
     if (cancelled) return
     setUser(u)
     await loadItems()
   } catch (e) {
-    console.error("[boot]", e)
+    showToast("Ошибка запуска: " + e.message, "bad")
   } finally {
     if (!cancelled) setLoading(false)
   }
@@ -121,23 +122,7 @@ boot()
 return () => {
   cancelled = true
 }
-}, [ensureUser, loadItems])
-
-useEffect(() => {
-const channel = supabase
-.channel("nexlot-items")
-.on(
-"postgres_changes",
-{ event: "*", schema: "public", table: "items" },
-() => {
-loadItems()
-}
-)
-.subscribe()
-return () => {
-supabase.removeChannel(channel)
-}
-}, [loadItems])
+}, [ensureUser, loadItems, showToast])
 
 const createItem = useCallback(
 async (payload) => {
