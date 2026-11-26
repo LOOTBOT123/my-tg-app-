@@ -1,45 +1,33 @@
-import WebApp from "@twa-dev/sdk"
-
 export function initTelegram() {
-  const call = (fn) => {
-    try {
-      fn()
-    } catch {
-      // Вне Telegram часть методов недоступна — приложение остаётся рабочим в браузере.
-    }
+  const tg = window?.Telegram?.WebApp
+  if (!tg) return
+  try {
+    tg.ready()
+    tg.expand()
+    tg.setHeaderColor?.("#07080d")
+    tg.setBackgroundColor?.("#07080d")
+  } catch (e) {
+    console.warn("[NEXLOT] Telegram init warning", e)
   }
-  call(() => WebApp.ready())
-  call(() => WebApp.expand())
-  call(() => WebApp.setHeaderColor("#07080d"))
-  call(() => WebApp.setBackgroundColor("#07080d"))
 }
 
 export function getTelegramUser() {
-  const user = WebApp.initDataUnsafe?.user
-  if (user?.id) {
-    const name = [user.first_name, user.last_name].filter(Boolean).join(" ")
-    return {
-      id: String(user.id),
-      name: name || "Пользователь",
-      username: user.username ? `@${user.username}` : "",
-      photoUrl: user.photo_url || "",
-      isGuest: false,
-    }
-  }
-
+  const u = window?.Telegram?.WebApp?.initDataUnsafe?.user
+  if (!u || typeof u.id !== "number") return null
   return {
-    id: "guest",
-    name: "Гость",
-    username: "@guest",
-    photoUrl: "",
-    isGuest: true,
+    id: u.id,
+    username: u.username || null,
+    firstName: u.first_name || "",
+    lastName: u.last_name || "",
+    photoUrl: u.photo_url || null,
   }
 }
 
-export function haptic(type) {
-  try {
-    WebApp.HapticFeedback?.notificationOccurred(type)
-  } catch {
-    // ignore
+export function openTelegramLink(url) {
+  const tg = window?.Telegram?.WebApp
+  if (tg?.openTelegramLink) {
+    tg.openTelegramLink(url)
+  } else {
+    window.open(url, "_blank", "noopener,noreferrer")
   }
 }
