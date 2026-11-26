@@ -9,5 +9,4 @@ if (!SUPABASE_URL.startsWith("https://") || !SUPABASE_ANON_KEY) {
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: { persistSession: false, autoRefreshToken: false },
-})https://zqlvrqtsugscaiczorry.supabase.co
-sb_publishable_QxPXGj8dsZu0FN4pDfTLAQ_FFt8sDX0
+})sb_publishable_QxPXGj8dsZu0FN4pDfTLAQ_FFt8sDX0
