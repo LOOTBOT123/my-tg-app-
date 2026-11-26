@@ -1,0 +1,5 @@
+[[redirects]]
+  from = "/supabase/*"
+  to = "https://supabase.co"
+  status = 200
+  force = true
